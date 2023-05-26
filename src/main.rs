@@ -1,7 +1,7 @@
 mod message;
 
 fn main() {
-    loop {
+   loop {
         let mut line = String::new();
         std::io::stdin().read_line(&mut line).unwrap();
         eprintln!("{}", line);
