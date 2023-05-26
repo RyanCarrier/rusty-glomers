@@ -14,7 +14,11 @@ case "$1" in
     echo "Running unique ID"
     sleep 5
     "$MAEBIN" test -w unique-ids --bin "$RUSTYBIN" --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition
-
+    ;;
+"3")
+    echo "Running unique ID"
+    sleep 5
+    "$MAEBIN" test -w broadcast --bin "$RUSTYBIN" --node-count 1 --time-limit 20 --rate 10
     ;;
 *)
     echo "not valid option, run with './run.sh number'"

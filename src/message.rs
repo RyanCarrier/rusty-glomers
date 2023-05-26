@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_with;
 use uuid::Uuid;
 
+use crate::state::State;
+
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MaelstromMessage {
@@ -20,6 +22,8 @@ pub struct MaelstromMessageBody {
     echo: Option<String>,
     id: Option<String>,
     node_ids: Option<Vec<String>>,
+    message: Option<usize>,
+    messages: Option<Vec<usize>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -31,10 +35,16 @@ pub enum MessageType {
     EchoOk,
     Generate,
     GenerateOk,
+    Broadcast,
+    BroadcastOk,
+    Read,
+    ReadOk,
+    Topology,
+    TopologyOk,
 }
 impl MaelstromMessage {
-    pub fn handle(self) -> Result<MaelstromMessage, String> {
-        let body_result = self.body.handle();
+    pub fn handle(self, state: &mut State) -> Result<MaelstromMessage, String> {
+        let body_result = self.body.handle(state);
         match body_result {
             Ok(body) => Ok(MaelstromMessage {
                 src: self.dest,
@@ -47,19 +57,27 @@ impl MaelstromMessage {
 }
 
 impl MaelstromMessageBody {
-    pub fn handle(self) -> Result<MaelstromMessageBody, String> {
+    pub fn handle(self, state: &mut State) -> Result<MaelstromMessageBody, String> {
         match self.msg_type {
-            MessageType::InitOk | MessageType::EchoOk | MessageType::GenerateOk => {
-                Err(String::from("can't handle response"))
+            MessageType::InitOk
+            | MessageType::EchoOk
+            | MessageType::TopologyOk
+            | MessageType::GenerateOk
+            | MessageType::ReadOk
+            | MessageType::BroadcastOk => Err(String::from("can't handle response")),
+            MessageType::Init => {
+                state.node_ids = self.node_ids.unwrap();
+                Ok(MaelstromMessageBody {
+                    id: None,
+                    msg_type: MessageType::InitOk,
+                    msg_id: self.msg_id,
+                    in_reply_to: self.msg_id,
+                    echo: None,
+                    node_ids: None,
+                    message: None,
+                    messages: None,
+                })
             }
-            MessageType::Init => Ok(MaelstromMessageBody {
-                id: None,
-                msg_type: MessageType::InitOk,
-                msg_id: self.msg_id,
-                in_reply_to: self.msg_id,
-                echo: None,
-                node_ids: None,
-            }),
             MessageType::Echo => Ok(MaelstromMessageBody {
                 id: None,
                 msg_type: MessageType::EchoOk,
@@ -67,6 +85,8 @@ impl MaelstromMessageBody {
                 in_reply_to: self.msg_id,
                 echo: self.echo,
                 node_ids: None,
+                message: None,
+                messages: None,
             }),
 
             MessageType::Generate => Ok(MaelstromMessageBody {
@@ -74,8 +94,43 @@ impl MaelstromMessageBody {
                 msg_type: MessageType::GenerateOk,
                 msg_id: self.msg_id,
                 in_reply_to: self.msg_id,
-                echo: self.echo,
+                echo: None,
                 node_ids: None,
+                message: None,
+                messages: None,
+            }),
+            MessageType::Broadcast => {
+                state.seen_messages.push(self.message.unwrap());
+                Ok(MaelstromMessageBody {
+                    id: None,
+                    msg_type: MessageType::BroadcastOk,
+                    msg_id: self.msg_id,
+                    in_reply_to: self.msg_id,
+                    echo: None,
+                    node_ids: None,
+                    message: None,
+                    messages: None,
+                })
+            }
+            MessageType::Read => Ok(MaelstromMessageBody {
+                id: None,
+                msg_type: MessageType::ReadOk,
+                msg_id: self.msg_id,
+                in_reply_to: self.msg_id,
+                echo: None,
+                node_ids: None,
+                message: None,
+                messages: Some(state.seen_messages.clone()),
+            }),
+            MessageType::Topology => Ok(MaelstromMessageBody {
+                id: None,
+                msg_type: MessageType::TopologyOk,
+                msg_id: self.msg_id,
+                in_reply_to: self.msg_id,
+                echo: None,
+                node_ids: None,
+                message: None,
+                messages: None,
             }),
         }
     }
