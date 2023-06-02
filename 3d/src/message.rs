@@ -2,7 +2,6 @@ use std::{collections::HashMap, fmt};
 
 use serde::{Deserialize, Serialize};
 use serde_with;
-use uuid::Uuid;
 
 use crate::state::State;
 
@@ -54,25 +53,22 @@ impl fmt::Display for MaelstromMessage {
 }
 
 impl MaelstromMessage {
-    pub const REPOST_DELAY_MS: u128 = 100;
     pub fn post(&self) {
         println!("{}", serde_json::to_string(self).unwrap());
     }
-    pub fn get_broadcast_msg(state: &State, msg: MaelstromMessage) -> Vec<Self> {
-        let temp: Vec<Self> = state
+    pub fn get_broadcast_msg(state: &State, msg: &MaelstromMessage) -> Vec<Self> {
+        state
             .topology
             .get(&state.node_id)
             .unwrap()
             .iter()
+            .filter(|x| **x != msg.src)
             .map(|dst_node| MaelstromMessage {
                 src: state.node_id.clone(),
                 dest: dst_node.clone(),
                 body: MaelstromMessageBody::get_broadcast_body(&msg),
             })
-            .collect();
-        temp.iter()
-            .for_each(|x| log::info!("Broadcasting {} to {}", msg.body.message.unwrap(), x.dest));
-        temp
+            .collect()
     }
     pub fn get_response(self, state: &State) -> Result<MaelstromMessage, String> {
         let body = self.body.get_response(state)?;
@@ -135,18 +131,7 @@ impl MaelstromMessageBody {
                 messages: None,
             }),
 
-            MessageType::Generate => Ok(MaelstromMessageBody {
-                topology: None,
-                node_id: None,
-                id: Some(Uuid::new_v4().to_string()),
-                msg_type: MessageType::GenerateOk,
-                msg_id: self.msg_id,
-                in_reply_to: self.msg_id,
-                echo: None,
-                node_ids: None,
-                message: None,
-                messages: None,
-            }),
+            MessageType::Generate => Err("idk".to_owned()),
             MessageType::Broadcast => Ok(MaelstromMessageBody {
                 node_id: None,
                 topology: None,

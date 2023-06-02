@@ -63,9 +63,15 @@ impl State {
         let need_to_repost: Vec<PostAck>;
         (self.awaiting_ack, need_to_repost) =
             self.awaiting_ack.clone().into_iter().partition(|x| {
-                (&x).timestamp.elapsed().unwrap().as_millis() < MaelstromMessage::REPOST_DELAY_MS
+                x.timestamp.elapsed().unwrap().as_millis() < MaelstromMessage::REPOST_DELAY_MS
             });
         //       self.awaiting_ack = need_to_wait;
+        //
+        info!(
+            "awaiting_ack len:{}, need_to_repost:{}",
+            self.awaiting_ack.len(),
+            need_to_repost.len()
+        );
         need_to_repost.iter().for_each(|x| {
             info!(
                 "Reposting: {} to {}",
