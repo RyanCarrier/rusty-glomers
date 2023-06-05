@@ -56,7 +56,7 @@ impl MaelstromMessage {
     pub fn post(&self) {
         println!("{}", serde_json::to_string(self).unwrap());
     }
-    pub fn get_broadcast_msg(state: &State, msg: &MaelstromMessage) -> Vec<Self> {
+    pub fn get_broadcast_msgs(state: &State, msg: &MaelstromMessage) -> Vec<Self> {
         state
             .topology
             .get(&state.node_id)
@@ -69,6 +69,9 @@ impl MaelstromMessage {
                 body: MaelstromMessageBody::get_broadcast_body(&msg),
             })
             .collect()
+    }
+    pub fn get_broadcast_receivers(&self, src: String) -> Vec<String> {
+        let local_nodes:Vec<String> = self.topology
     }
     pub fn get_response(self, state: &State) -> Result<MaelstromMessage, String> {
         let body = self.body.get_response(state)?;
@@ -118,25 +121,27 @@ impl MaelstromMessageBody {
                 message: None,
                 messages: None,
             }),
-            MessageType::Echo => Ok(MaelstromMessageBody {
-                topology: None,
-                node_id: None,
-                id: None,
-                msg_type: MessageType::EchoOk,
-                msg_id: self.msg_id,
-                in_reply_to: self.msg_id,
-                echo: self.echo,
-                node_ids: None,
-                message: None,
-                messages: None,
-            }),
 
-            MessageType::Generate => Err("idk".to_owned()),
+            MessageType::Echo | MessageType::Generate => {
+                Err(String::from("will not handle response"))
+            }
             MessageType::Broadcast => Ok(MaelstromMessageBody {
                 node_id: None,
                 topology: None,
                 id: None,
                 msg_type: MessageType::BroadcastOk,
+                msg_id: self.msg_id,
+                in_reply_to: self.msg_id,
+                echo: None,
+                node_ids: None,
+                message: None,
+                messages: None,
+            }),
+            MessageType::Topology => Ok(MaelstromMessageBody {
+                node_id: None,
+                topology: None,
+                id: None,
+                msg_type: MessageType::TopologyOk,
                 msg_id: self.msg_id,
                 in_reply_to: self.msg_id,
                 echo: None,
@@ -155,18 +160,6 @@ impl MaelstromMessageBody {
                 node_ids: None,
                 message: None,
                 messages: Some(state.seen_messages.clone()),
-            }),
-            MessageType::Topology => Ok(MaelstromMessageBody {
-                node_id: None,
-                topology: None,
-                id: None,
-                msg_type: MessageType::TopologyOk,
-                msg_id: self.msg_id,
-                in_reply_to: self.msg_id,
-                echo: None,
-                node_ids: None,
-                message: None,
-                messages: None,
             }),
         }
     }

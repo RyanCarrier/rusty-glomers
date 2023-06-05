@@ -50,7 +50,7 @@ impl State {
                 if !self.seen_messages.contains(&message) {
                     self.seen_messages.push(message);
                     //broadcast new message to friends
-                    MaelstromMessage::get_broadcast_msg(&self, &msg)
+                    MaelstromMessage::get_broadcast_msgs(&self, &msg)
                         .into_iter()
                         .for_each(|x| x.post());
                 }
