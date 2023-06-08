@@ -56,23 +56,23 @@ impl MaelstromMessage {
     pub fn post(&self) {
         println!("{}", serde_json::to_string(self).unwrap());
     }
-    pub fn get_broadcast_msgs(state: &State, msg: &MaelstromMessage) -> Vec<Self> {
-        state
-            .topology
-            .get(&state.node_id)
-            .unwrap()
-            .iter()
-            .filter(|x| **x != msg.src)
-            .map(|dst_node| MaelstromMessage {
+    pub fn broadcast_msgs(state: &State, msg: &MaelstromMessage) {
+        let destinations: &Vec<String>;
+        if state.broadcast_topology.contains_key(&msg.src) {
+            destinations = state.broadcast_topology.get(&msg.src).unwrap();
+        } else {
+            destinations = &state.locals;
+        }
+        destinations.iter().for_each(|dst_node| {
+            MaelstromMessage {
                 src: state.node_id.clone(),
                 dest: dst_node.clone(),
                 body: MaelstromMessageBody::get_broadcast_body(&msg),
-            })
-            .collect()
+            }
+            .post()
+        });
     }
-    pub fn get_broadcast_receivers(&self, src: String) -> Vec<String> {
-        let local_nodes:Vec<String> = self.topology
-    }
+
     pub fn get_response(self, state: &State) -> Result<MaelstromMessage, String> {
         let body = self.body.get_response(state)?;
         Ok(MaelstromMessage {
@@ -96,7 +96,7 @@ impl MaelstromMessageBody {
             node_id: None,
             id: None,
             node_ids: None,
-            message: Some(message),
+            message: msg.body.message,
             messages: None,
             topology: None,
         }

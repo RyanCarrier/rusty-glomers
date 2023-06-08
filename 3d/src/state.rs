@@ -12,6 +12,8 @@ pub struct State {
     pub node_ids: Vec<String>,
     pub seen_messages: Vec<usize>,
     pub topology: HashMap<String, Vec<String>>,
+    pub locals: Vec<String>,
+    pub broadcast_topology: HashMap<String, Vec<String>>,
 }
 
 impl State {
@@ -21,7 +23,28 @@ impl State {
             node_ids: Vec::new(),
             seen_messages: Vec::new(),
             topology: HashMap::new(),
+            locals: Vec::new(),
+            broadcast_topology: HashMap::new(),
         }
+    }
+
+    pub fn update_topology(&mut self, topology: HashMap<String, Vec<String>>) {
+        self.topology = topology;
+        self.locals = self.topology.get(&self.node_id).unwrap().clone();
+        self.broadcast_topology.clear();
+        self.node_ids.iter().for_each(|src_node| {
+            let src_local_nodes: &Vec<String> = self.topology.get(src_node).unwrap();
+            self.broadcast_topology.insert(
+                src_node.clone(),
+                self.locals
+                    .clone()
+                    .into_iter()
+                    .filter(|x| !(src_local_nodes.contains(x) || x == src_node))
+                    .collect(),
+            );
+        });
+        info!("Topology: {:?}", self.topology);
+        info!("Broadcast top: {:?}", self.broadcast_topology);
     }
 
     pub fn handle(&mut self, msg: MaelstromMessage) {
@@ -46,20 +69,14 @@ impl State {
                     &msg.body.message.unwrap(),
                     &msg.src
                 );
-                let message: usize = msg.body.message.clone().unwrap();
+                let message: usize = msg.body.message.unwrap().clone();
                 if !self.seen_messages.contains(&message) {
                     self.seen_messages.push(message);
-                    //broadcast new message to friends
-                    MaelstromMessage::get_broadcast_msgs(&self, &msg)
-                        .into_iter()
-                        .for_each(|x| x.post());
+                    MaelstromMessage::broadcast_msgs(&self, &msg);
                 }
             }
             MessageType::Read => {}
-            MessageType::Topology => {
-                self.topology = msg.body.topology.clone().unwrap();
-                info!("Topology: {:?}", self.topology);
-            }
+            MessageType::Topology => self.update_topology(msg.body.topology.clone().unwrap()),
         }
         match msg.get_response(self) {
             Ok(r) => r.post(),
