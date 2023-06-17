@@ -57,13 +57,7 @@ impl MaelstromMessage {
         println!("{}", serde_json::to_string(self).unwrap());
     }
     pub fn broadcast_msgs(state: &State, msg: &MaelstromMessage) {
-        let destinations: &Vec<String>;
-        if state.broadcast_topology.contains_key(&msg.src) {
-            destinations = state.broadcast_topology.get(&msg.src).unwrap();
-        } else {
-            destinations = &state.locals;
-        }
-        destinations.iter().for_each(|dst_node| {
+        state.node_ids.iter().for_each(|dst_node| {
             MaelstromMessage {
                 src: state.node_id.clone(),
                 dest: dst_node.clone(),
